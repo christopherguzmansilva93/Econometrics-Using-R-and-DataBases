@@ -1,0 +1,152 @@
+---
+title: "Project Tax Revenue Prediction"
+author: "Christopher Guzman Silva B.S Economics (2023)"
+date: "2023-11-16"
+
+---
+
+```{r setup, include=FALSE}
+#IMPORT PACKASGES
+library(readxl)
+library(tidyverse)
+library(stargazer)
+library(ggplot2)
+#CLEAR CONSOLE & ENVIROMENT
+rm(list = ls()) # CLEAR ENVIROMENT
+cat("\014") #CLEAR CONSOLE
+```
+
+## MERGE DATA
+```{r pressure, echo=FALSE}
+# IMPORT DATA
+# Read the data from Excel
+US_Tax_Revenue <- read_excel("~/Desktop/econometrics/lecture codes/Final Project/U.S Tax Revenue by year.xlsx", skip = 8)
+
+#"YEAR" and "REVENUE", you can create a simple line plot
+# Install and load the lubridate package if not already installed
+# install.packages("lubridate")
+library(lubridate)
+
+# Convert the "YEAR" column to numeric by extracting the year for plotting
+US_Tax_Revenue$YEAR_plot <- year(US_Tax_Revenue$YEAR)
+
+# Plot the data
+ggplot(US_Tax_Revenue, aes(x = YEAR_plot, y = TAX_REVENUE)) +
+  geom_line() +
+  geom_vline(xintercept = c(2000, 2007), linetype = "dashed", color = "red") +
+  geom_vline(xintercept = c(2003, 2009, 2020), linetype = "dashed", color = "green") +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_continuous(breaks = seq(min(US_Tax_Revenue$YEAR_plot), max(US_Tax_Revenue$YEAR_plot), by = 4),
+                     limits = c(min(US_Tax_Revenue$YEAR_plot), max(US_Tax_Revenue$YEAR_plot))) +
+  labs(title = "U.S Tax Revenue Over Years",
+       x = "Year",
+       y = "Tax Revenue in Billions")
+
+
+```
+
+## MERGE DATA
+```{r pressure, echo=FALSE}
+# IMPORT DATA For GDP,US_Population,Unemployment_Rate
+# Read the data from Excel
+GDP <- readxl::read_excel("~/Desktop/econometrics/lecture codes/Final Project/GDP.xls", skip = 10)
+US_Population <-readxl::read_excel("~/Desktop/econometrics/lecture codes/Final Project/U_S_Population_1984-2021.xls", skip = 10)
+Unemployment_Rate <-readxl::read_excel("~/Desktop/econometrics/lecture codes/Final Project/Unemployment_Rate.xls", skip = 10)
+Real_Median_Household_Income <-readxl::read_excel("~/Desktop/econometrics/lecture codes/Final Project/Real_Median_Household_Income_US.xls", skip = 10)
+US_city_average_CPI <-readxl::read_excel("~/Desktop/econometrics/lecture codes/Final Project/US_city_average_CPI.xlsx", skip = 11)
+
+ggplot(Real_Median_Household_Income, aes(x = YEAR, y = INCOME)) +
+  geom_line() +
+  
+  labs(title = "Real Household Income",
+       x = "Year",
+       y = "Income")
+```
+
+## MERGE DATA
+```{r pressure, echo=FALSE}
+# IMPORT DATA
+str(GDP$YEAR)
+str(US_Population$YEAR)
+str(Unemployment_Rate$YEAR)
+str(US_city_average_CPI$YEAR)
+str(US_Tax_Revenue$YEAR)
+str(Real_Median_Household_Income$YEAR)
+library(lubridate)
+
+GDP$YEAR <- as_datetime(GDP$YEAR)
+US_Population$YEAR <- as_datetime(US_Population$YEAR)
+Unemployment_Rate$YEAR <- as_datetime(Unemployment_Rate$YEAR)
+US_city_average_CPI$YEAR <- as_datetime(US_city_average_CPI$YEAR)
+US_Tax_Revenue$YEAR <- as_datetime(US_Tax_Revenue$YEAR)
+Real_Median_Household_Income$YEAR <- as_datetime(Real_Median_Household_Income$YEAR)
+
+merged_data <- merge(US_Tax_Revenue, Real_Median_Household_Income, by = "YEAR", all = TRUE)
+merged_data <- merge(merged_data, GDP, by = "YEAR", all = TRUE)
+merged_data <- merge(merged_data, US_Population, by = "YEAR", all = TRUE)
+merged_data <- merge(merged_data, Unemployment_Rate, by = "YEAR", all = TRUE)
+merged_data <- merge(merged_data, US_city_average_CPI, by = "YEAR", all = TRUE)
+
+# Create a list of data frames to be merged
+data_frames <- list(US_Tax_Revenue, Real_Median_Household_Income, GDP, US_Population, Unemployment_Rate, US_city_average_CPI)
+
+# Merge all data frames in the list using Reduce
+merged_data <- Reduce(function(df1, df2) merge(df1, df2, by = "YEAR", all = TRUE), data_frames)
+
+# View the structure of the merged data frame
+#str(merged_data)
+
+# View the merged dataset
+View(merged_data)
+
+
+```
+liner regressions
+```{r pressure, echo=FALSE}
+
+# Merge datasets based on the "YEAR" variable
+df <- merge(GDP, US_Population, by = "YEAR")
+df <- merge(df, Unemployment_Rate, by = "YEAR")
+df <- merge(df, Real_Median_Household_Income, by = "YEAR")
+df <- merge(df, US_city_average_CPI, by = "YEAR")
+df <- merge(df, US_Tax_Revenue, by = "YEAR")
+
+# Assuming you have already loaded the necessary libraries and merged the datasets as described
+
+# Load the ggplot2 library
+library(ggplot2)
+
+# Melt the data for better plotting with facets
+install.packages("reshape2")
+library(reshape2)
+df_melted <- melt(df, id.vars = "YEAR")
+
+# Create a line plot with facets for each variable
+ggplot(df_melted, aes(x = YEAR, y = value, color = variable)) +
+  geom_line() +
+  facet_wrap(~ variable, scales = "free_y", ncol = 2) +
+  labs(title = "Economic Indicators Over the Years", x = "Year", y = "Value") +
+  theme_minimal()
+
+
+# Check column names in df
+names(df)
+# Install the broom package
+install.packages("broom")
+
+# Load the broom package
+library(broom)
+# Linear regression model
+if (!requireNamespace("broom", quietly = TRUE)) {
+  install.packages("broom")
+}
+library(broom)
+model1 <- lm(TAX_REVENUE ~ GDP, data = df)
+model2 <- lm(TAX_REVENUE ~ GDP + POPULATION , data = df)
+model3 <- lm(TAX_REVENUE ~ GDP + POPULATION + UNEMPLOYMENT_RATE, data = df)
+model4 <- lm(TAX_REVENUE ~ GDP + POPULATION + UNEMPLOYMENT_RATE + INCOME, data = df)
+model5 <- lm(TAX_REVENUE ~ GDP + POPULATION + UNEMPLOYMENT_RATE + INCOME + CPI, data = df)
+
+stargazer(model1,model2,model3,model4,model5, title = "Results", align =TRUE, type="html", out ="Linear_Regression.html");cat("\014")
+
+```
